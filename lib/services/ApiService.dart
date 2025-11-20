@@ -6,15 +6,11 @@ import 'package:flutter_cityweather_front/services/OpenMeteoService.dart';
 class ApiService {
   final OpenMeteoService _openMeteoService = OpenMeteoService();
 
-  Future<Map<String, dynamic>?> getWeatherData(GeoPosition position) async {
-    return await _openMeteoService.getWeatherForecast(position);
-  }
-
-  Future<ApiResponse?> CallApi(GeoPosition position) async {
-    final weatherData = await getWeatherData(position);
-    if (weatherData != null) {
-      return ApiResponse.fromJson(weatherData);
+  Future<ApiResponse?> fetchForecast(GeoPosition position) async {
+    final weatherData = await _openMeteoService.getWeatherForecast(position);
+    if (weatherData == null) {
+      return null;
     }
-    return null;
+    return ApiResponse.fromJson(weatherData);
   }
 }

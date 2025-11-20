@@ -5,12 +5,12 @@ import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
 import 'package:flutter_cityweather_front/services/LocationService.dart';
 
 class CitySearchDialog extends StatefulWidget {
-  final Function(GeoPosition) onCitySelected;
+  final ValueChanged<GeoPosition> onCitySelected;
 
-  const CitySearchDialog({Key? key, required this.onCitySelected}) : super(key: key);
+  const CitySearchDialog({super.key, required this.onCitySelected});
 
   @override
-  _CitySearchDialogState createState() => _CitySearchDialogState();
+  State<CitySearchDialog> createState() => _CitySearchDialogState();
 }
 
 class _CitySearchDialogState extends State<CitySearchDialog> {
@@ -22,15 +22,15 @@ class _CitySearchDialogState extends State<CitySearchDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Rechercher une ville'),
-      content: Container(
+      title: const Text('Rechercher une ville'),
+      content: SizedBox(
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _searchController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nom de la ville',
                 hintText: 'Ex: Paris, Londres, New York...',
                 prefixIcon: Icon(Icons.search),
@@ -47,13 +47,13 @@ class _CitySearchDialogState extends State<CitySearchDialog> {
                 }
               },
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             if (_isLoading)
-              CircularProgressIndicator()
+              const CircularProgressIndicator()
             else if (_errorMessage.isNotEmpty)
               Text(
                 _errorMessage,
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: Colors.red),
               )
             else if (_searchResults.isNotEmpty)
               Flexible(
@@ -80,7 +80,7 @@ class _CitySearchDialogState extends State<CitySearchDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text('Annuler'),
+          child: const Text('Annuler'),
         ),
       ],
     );
@@ -119,12 +119,12 @@ class _CitySearchDialogState extends State<CitySearchDialog> {
 
 // Version page complète pour navigation
 class CitySearchPage extends StatefulWidget {
-  final Function(GeoPosition) onCitySelected;
+  final ValueChanged<GeoPosition> onCitySelected;
 
-  const CitySearchPage({Key? key, required this.onCitySelected}) : super(key: key);
+  const CitySearchPage({super.key, required this.onCitySelected});
 
   @override
-  _CitySearchPageState createState() => _CitySearchPageState();
+  State<CitySearchPage> createState() => _CitySearchPageState();
 }
 
 class _CitySearchPageState extends State<CitySearchPage> {

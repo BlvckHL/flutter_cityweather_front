@@ -8,6 +8,8 @@ class OpenMeteoService {
   final String geocodingBaseUrl =
       "https://geocoding-api.open-meteo.com/v1/search";
   final String weatherBaseUrl = "https://api.open-meteo.com/v1/forecast";
+  final String reverseGeocodingBaseUrl =
+      "https://geocoding-api.open-meteo.com/v1/reverse";
 
   // Recherche de ville via géocodage
   Future<List<GeoPosition>> searchCities(String cityName) async {
@@ -62,7 +64,10 @@ class OpenMeteoService {
   // Récupération des données météo
   Future<Map<String, dynamic>?> getWeatherForecast(GeoPosition position) async {
     final query =
-        "$weatherBaseUrl?latitude=${position.latitude}&longitude=${position.longitude}&current=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Europe/Paris";
+        "$weatherBaseUrl?latitude=${position.latitude}&longitude=${position.longitude}"
+        "&current=temperature_2m,wind_speed_10m,weather_code"
+        "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code"
+        "&timezone=Europe/Paris";
     final uri = Uri.parse(query);
 
     final transaction = Sentry.startTransaction(
@@ -90,6 +95,53 @@ class OpenMeteoService {
         Sentry.captureMessage("Weather API failed: ${response.statusCode}");
         return null;
       }
+    } catch (error, stackTrace) {
+      transaction.finish(status: const SpanStatus.internalError());
+      Sentry.captureException(error, stackTrace: stackTrace);
+      return null;
+    }
+  }
+
+  Future<GeoPosition?> reverseGeocode(
+    double latitude,
+    double longitude,
+  ) async {
+    final query =
+        "$reverseGeocodingBaseUrl?latitude=$latitude&longitude=$longitude&language=fr";
+    final uri = Uri.parse(query);
+
+    final transaction = Sentry.startTransaction(
+      'Reverse geocoding API Call',
+      'http.client',
+    );
+
+    try {
+      final span = transaction.startChild('http.request');
+      span.setData('url', query);
+      span.setData('method', 'GET');
+
+      final response = await http.get(uri);
+      span.setData('status_code', response.statusCode);
+      span.finish();
+
+      if (response.statusCode == 200) {
+        transaction.finish(status: const SpanStatus.ok());
+        final data = json.decode(response.body);
+        if (data['results'] != null && data['results'].isNotEmpty) {
+          final first = data['results'].first;
+          return GeoPosition(
+            city: first['name'] ?? 'Position actuelle',
+            latitude: (first['latitude'] ?? latitude).toDouble(),
+            longitude: (first['longitude'] ?? longitude).toDouble(),
+          );
+        }
+      } else {
+        transaction.finish(status: const SpanStatus.internalError());
+        Sentry.captureMessage(
+          "Reverse geocoding API failed: ${response.statusCode}",
+        );
+      }
+      return null;
     } catch (error, stackTrace) {
       transaction.finish(status: const SpanStatus.internalError());
       Sentry.captureException(error, stackTrace: stackTrace);

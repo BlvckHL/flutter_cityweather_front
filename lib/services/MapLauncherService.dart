@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,7 +25,8 @@ class MapLauncherService {
         throw 'Impossible d\'ouvrir les cartes';
       }
     } catch (e) {
-      print('Erreur lors de l\'ouverture des cartes: $e');
+      debugPrint('Erreur lors de l\'ouverture des cartes: $e');
+      rethrow;
     }
   }
 }

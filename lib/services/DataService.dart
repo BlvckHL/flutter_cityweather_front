@@ -15,13 +15,15 @@ class DataService {
   Future<bool> addCity(String string) async {
     final prefs = await SharedPreferences.getInstance();
     var list  = prefs.getStringList(key) ?? [];
-    list.add(string);
+    if (!list.contains(string)) {
+      list.add(string);
+    }
     return prefs.setStringList(key, list);
   }
 
   //supprimer
 
-  Future<bool> remouveCity(String string) async {
+  Future<bool> removeCity(String string) async {
     final prefs = await SharedPreferences.getInstance();
     var list  = prefs.getStringList(key) ?? [];
     list.remove(string);

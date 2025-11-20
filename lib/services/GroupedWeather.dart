@@ -1,22 +1,22 @@
 class GroupedWeather {
+  final double minTemperature;
+  final double maxTemperature;
+  final double precipitation;
+  final String dayLabel;
+  final DateTime date;
+  final int weatherCode;
 
-  int min;
-  int max;
-  String description;
-  String icon;
-  String day;
+  GroupedWeather({
+    required this.minTemperature,
+    required this.maxTemperature,
+    required this.precipitation,
+    required this.dayLabel,
+    required this.date,
+    required this.weatherCode,
+  });
 
-  GroupedWeather (
-      this.min,
-
-      this.max,
-      this.description,
-      this.icon,
-      this.day
-      );
-
-  String MinAndMax () {
-    return "Min: $min°C- Max: $max°C";
-}
-
+  String minAndMax() {
+    return "Min: ${minTemperature.toStringAsFixed(1)}°C - "
+        "Max: ${maxTemperature.toStringAsFixed(1)}°C";
+  }
 }

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
@@ -9,32 +8,54 @@ import 'package:flutter_cityweather_front/services/LocationService.dart';
 import 'package:flutter_cityweather_front/services/MapLauncherService.dart';
 import 'package:flutter_cityweather_front/views/CitySearch.dart';
 import 'package:flutter_cityweather_front/views/MyDrawerView.dart';
+import 'package:flutter_cityweather_front/views/WeatherForecastView.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({Key? key}) : super(key: key);
+  const HomeView({super.key});
   @override
   HomeState createState() => HomeState();
 }
 
 class HomeState extends State<HomeView> {
   GeoPosition? userPosition;
-  GeoPosition? CallPositionApi;
+  GeoPosition? selectedPosition;
   ApiResponse? apiResponse;
-  List<String> cities = [];
+  List<String> savedCities = [];
   bool isLoadingLocation = false;
+  bool isLoadingForecast = false;
 
   @override
   void initState() {
-    getUserLocation();
-    updateCities();
     super.initState();
+    getUserLocation();
+    _refreshSavedCities();
+  }
+
+  Widget _buildForecastBody() {
+    if (isLoadingForecast) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (selectedPosition == null) {
+      return _EmptyState(
+        icon: Icons.travel_explore,
+        message:
+            "Sélectionnez une ville ou utilisez votre position GPS pour démarrer.",
+      );
+    }
+    if (apiResponse == null) {
+      return _EmptyState(
+        icon: Icons.cloud_off,
+        message: "Aucune donnée météo pour le moment.",
+      );
+    }
+    return WeatherForecastView(forecast: apiResponse!);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(CallPositionApi?.city ?? "Ma meteo"),
+        title: Text(selectedPosition?.city ?? "CityWeather"),
         actions: [
           // Bouton pour rechercher une ville
           IconButton(
@@ -53,53 +74,30 @@ class HomeState extends State<HomeView> {
             onPressed: isLoadingLocation ? null : _getCurrentLocation,
           ),
           // Bouton pour ouvrir les cartes
-          if (CallPositionApi != null)
+          if (selectedPosition != null)
             IconButton(icon: Icon(Icons.map), onPressed: () => _openInMaps()),
         ],
       ),
       drawer: MyDrawer(
         myPosition: userPosition,
-        cities: cities,
-        onTap: onTap,
-        onDelete: remouveCity,
+        cities: savedCities,
+        onTap: _onFavoriteSelected,
+        onDelete: _removeCity,
       ),
       body: Column(
         children: [
-          // Informations sur la position actuelle
-          if (CallPositionApi != null)
-            Container(
-              padding: EdgeInsets.all(16),
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              child: Row(
-                children: [
-                  Icon(Icons.location_on),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "${CallPositionApi!.city}\nLat: ${CallPositionApi!.latitude.toStringAsFixed(4)}, Lon: ${CallPositionApi!.longitude.toStringAsFixed(4)}",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.map_outlined),
-                    onPressed: _openInMaps,
-                    tooltip: "Ouvrir dans les cartes",
-                  ),
-                ],
-              ),
+          if (selectedPosition != null)
+            _LocationHeader(
+              position: selectedPosition!,
+              onOpenMap: _openInMaps,
             ),
-          // AddCityView(onAddCity: onAddCity),
-          // Expanded(
-          //   child: (apiResponse == null)
-          //     ? NNoDataView()
-          //     : ForcastView(response: apiResponse!),
-          // )
+          Expanded(child: _buildForecastBody()),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCitySearchDialog,
-        child: Icon(Icons.add_location),
         tooltip: "Rechercher une ville",
+        child: const Icon(Icons.add_location_alt),
       ),
     );
   }
@@ -120,9 +118,18 @@ class HomeState extends State<HomeView> {
   // Sélectionner une ville depuis la recherche
   void _selectCity(GeoPosition position) {
     setState(() {
-      CallPositionApi = position;
+      selectedPosition = position;
     });
-    CallApi();
+    _loadForecast();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("${position.city} sélectionnée"),
+        action: SnackBarAction(
+          label: "Ajouter",
+          onPressed: () => onAddCity(position.city),
+        ),
+      ),
+    );
   }
 
   // Obtenir la position GPS actuelle
@@ -137,10 +144,10 @@ class HomeState extends State<HomeView> {
       if (loc != null) {
         setState(() {
           userPosition = loc;
-          CallPositionApi = loc;
+          selectedPosition = loc;
         });
         Sentry.captureMessage("GPS location obtained: ${loc.city}");
-        CallApi();
+        _loadForecast();
       } else {
         _showLocationError();
       }
@@ -156,10 +163,11 @@ class HomeState extends State<HomeView> {
 
   // Ouvrir dans l'application de cartes
   void _openInMaps() async {
-    if (CallPositionApi != null) {
+    if (selectedPosition != null) {
       try {
-        await MapLauncherService.openMap(CallPositionApi!);
+        await MapLauncherService.openMap(selectedPosition!);
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Impossible d'ouvrir les cartes: $e")),
         );
@@ -188,12 +196,12 @@ class HomeState extends State<HomeView> {
       if (loc != null) {
         setState(() {
           userPosition = loc;
-          CallPositionApi = loc;
+          selectedPosition = loc;
         });
         Sentry.captureMessage(
           "User location obtained: ${loc.city}, Latitude: ${loc.latitude}, Longitude: ${loc.longitude}",
         );
-        CallApi();
+        _loadForecast();
       } else {
         Sentry.captureMessage("Failed to get user location: Location is null.");
       }
@@ -205,26 +213,56 @@ class HomeState extends State<HomeView> {
     }
   }
 
-  CallApi() async {
-    if (CallPositionApi == null) return;
-    apiResponse = await ApiService().CallApi(CallPositionApi!);
-    setState(() {});
-  }
-
-  //New city
-  onTap(String string) async {
-    Navigator.of(context).pop();
-    removeKeybord();
-    if (string == userPosition?.city) {
-      CallPositionApi = userPosition;
-      CallApi();
-    } else {
-      CallPositionApi = await LocationService().getCoordsFromCity(string);
-      CallApi();
+  _loadForecast() async {
+    if (selectedPosition == null) return;
+    setState(() {
+      isLoadingForecast = true;
+    });
+    try {
+      final result = await ApiService().fetchForecast(selectedPosition!);
+      if (!mounted) return;
+      setState(() {
+        apiResponse = result;
+      });
+    } catch (error, stackTrace) {
+      Sentry.captureException(error, stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Erreur lors de la récupération de la météo."),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingForecast = false;
+        });
+      }
     }
   }
 
-  removeKeybord() {
+  //New city
+  _onFavoriteSelected(String string) async {
+    Navigator.of(context).pop();
+    _dismissKeyboard();
+    if (string == userPosition?.city && userPosition != null) {
+      selectedPosition = userPosition;
+      _loadForecast();
+    } else {
+      selectedPosition = await LocationService().getCoordsFromCity(string);
+      if (selectedPosition != null) {
+        _loadForecast();
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Impossible de trouver la ville $string")),
+        );
+      }
+    }
+  }
+
+  _dismissKeyboard() {
     FocusScope.of(context).requestFocus(FocusNode());
   }
 
@@ -235,28 +273,91 @@ class HomeState extends State<HomeView> {
     try {
       final span = transaction.startChild('database.write');
       span.setData('city', string);
-      DataService().addCity(string).then((onSuccess) => updateCities());
+      await DataService().addCity(string);
       span.finish();
 
       transaction.finish(status: const SpanStatus.ok());
+      await _refreshSavedCities();
     } catch (error, stackTrace) {
       transaction.finish(status: const SpanStatus.internalError());
       Sentry.captureException(error, stackTrace: stackTrace);
       Sentry.captureMessage("Error occurred while adding city: $error");
     } finally {
       Sentry.captureMessage("City added: $string");
-      removeKeybord();
+      _dismissKeyboard();
     }
   }
 
   //remouve city
-  remouveCity(String string) async {
-    DataService().remouveCity(string).then((onSuccess) => updateCities());
+  _removeCity(String string) async {
+    await DataService().removeCity(string);
+    await _refreshSavedCities();
   }
 
   //Update city
-  updateCities() async {
-    cities = await DataService().getCities();
+  _refreshSavedCities() async {
+    savedCities = await DataService().getCities();
     setState(() {});
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _EmptyState({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 48, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationHeader extends StatelessWidget {
+  final GeoPosition position;
+  final VoidCallback onOpenMap;
+
+  const _LocationHeader({required this.position, required this.onOpenMap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+      child: Row(
+        children: [
+          Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "${position.city}\nLat: ${position.latitude.toStringAsFixed(4)}, "
+              "Lon: ${position.longitude.toStringAsFixed(4)}",
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.map_outlined),
+            onPressed: onOpenMap,
+            tooltip: "Ouvrir dans les cartes",
+          ),
+        ],
+      ),
+    );
   }
 }
