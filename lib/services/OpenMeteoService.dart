@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:tp_flutter_cityweather/models/MyGeoposition.dart';
+import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
 import 'package:http/http.dart' as http;
 
 class OpenMeteoService {

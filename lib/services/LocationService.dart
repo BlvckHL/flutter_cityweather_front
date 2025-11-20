@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:location/location.dart';
-import 'package:tp_flutter_cityweather/models/MyGeoposition.dart';
-import 'package:tp_flutter_cityweather/services/OpenMeteoService.dart';
+import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
+import 'package:flutter_cityweather_front/services/OpenMeteoService.dart';
 
 class LocationService {
   final OpenMeteoService _openMeteoService = OpenMeteoService();
@@ -29,7 +29,7 @@ class LocationService {
       }
 
       return await location.getLocation();
-    } on PlatformException catch (error) {
+    } on PlatformException catch (_) {
       return null;
     }
   }

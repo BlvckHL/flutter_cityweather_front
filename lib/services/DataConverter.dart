@@ -1,6 +1,6 @@
 
-import 'package:tp_flutter_cityweather/services/ApiResponse.dart';
-import 'package:tp_flutter_cityweather/services/GroupedWeather.dart';
+import 'package:flutter_cityweather_front/services/ApiResponse.dart';
+import 'package:flutter_cityweather_front/services/GroupedWeather.dart';
 
 class DataConverter {
 

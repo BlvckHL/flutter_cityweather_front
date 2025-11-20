@@ -1,7 +1,7 @@
 
-import 'package:tp_flutter_cityweather/models/MyGeoposition.dart';
-import 'package:tp_flutter_cityweather/services/ApiResponse.dart';
-import 'package:tp_flutter_cityweather/services/OpenMeteoService.dart';
+import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
+import 'package:flutter_cityweather_front/services/ApiResponse.dart';
+import 'package:flutter_cityweather_front/services/OpenMeteoService.dart';
 
 class ApiService {
   final OpenMeteoService _openMeteoService = OpenMeteoService();

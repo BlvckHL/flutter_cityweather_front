@@ -1,14 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:tp_flutter_cityweather/models/MyGeoposition.dart';
-import 'package:tp_flutter_cityweather/services/ApiResponse.dart';
-import 'package:tp_flutter_cityweather/services/ApiService.dart';
-import 'package:tp_flutter_cityweather/services/DataService.dart';
-import 'package:tp_flutter_cityweather/services/LocationService.dart';
-import 'package:tp_flutter_cityweather/services/MapLauncherService.dart';
-import 'package:tp_flutter_cityweather/views/CitySearch.dart';
-import 'package:tp_flutter_cityweather/views/MyDrawerView.dart';
+import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
+import 'package:flutter_cityweather_front/services/ApiResponse.dart';
+import 'package:flutter_cityweather_front/services/ApiService.dart';
+import 'package:flutter_cityweather_front/services/DataService.dart';
+import 'package:flutter_cityweather_front/services/LocationService.dart';
+import 'package:flutter_cityweather_front/services/MapLauncherService.dart';
+import 'package:flutter_cityweather_front/views/CitySearch.dart';
+import 'package:flutter_cityweather_front/views/MyDrawerView.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({Key? key}) : super(key: key);
@@ -43,17 +43,18 @@ class HomeState extends State<HomeView> {
           ),
           // Bouton pour localisation GPS
           IconButton(
-            icon: isLoadingLocation 
-              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : Icon(Icons.my_location),
+            icon: isLoadingLocation
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(Icons.my_location),
             onPressed: isLoadingLocation ? null : _getCurrentLocation,
           ),
           // Bouton pour ouvrir les cartes
           if (CallPositionApi != null)
-            IconButton(
-              icon: Icon(Icons.map),
-              onPressed: () => _openInMaps(),
-            ),
+            IconButton(icon: Icon(Icons.map), onPressed: () => _openInMaps()),
         ],
       ),
       drawer: MyDrawer(
@@ -89,8 +90,8 @@ class HomeState extends State<HomeView> {
             ),
           // AddCityView(onAddCity: onAddCity),
           // Expanded(
-          //   child: (apiResponse == null) 
-          //     ? NNoDataView() 
+          //   child: (apiResponse == null)
+          //     ? NNoDataView()
           //     : ForcastView(response: apiResponse!),
           // )
         ],
@@ -169,7 +170,9 @@ class HomeState extends State<HomeView> {
   void _showLocationError() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("Impossible d'obtenir votre position. Vérifiez vos permissions GPS."),
+        content: Text(
+          "Impossible d'obtenir votre position. Vérifiez vos permissions GPS.",
+        ),
         action: SnackBarAction(
           label: "Réessayer",
           onPressed: _getCurrentLocation,
@@ -179,70 +182,72 @@ class HomeState extends State<HomeView> {
   }
 
   getUserLocation() async {
-  try {
-    Sentry.captureMessage("Attempting to get user location...");
-    final loc = await LocationService().getCity();
-    if (loc != null) {
-      setState(() {
-        userPosition = loc;
-        CallPositionApi = loc;
-      });
-      Sentry.captureMessage("User location obtained: ${loc.city}, Latitude: ${loc.latitude}, Longitude: ${loc.longitude}");
-      CallApi();
-    } else {
-      Sentry.captureMessage("Failed to get user location: Location is null.");
-    }
-  } catch (error, stackTrace) {
-    Sentry.captureException(error, stackTrace: stackTrace);
-    Sentry.captureMessage("Error occurred while getting user location: $error");
-  }
-}
-
-    CallApi() async {
-      if (CallPositionApi == null) return;
-      apiResponse = await ApiService().CallApi(CallPositionApi!);
-      setState(() {
-      });
-    }
-
-    //New city
-    onTap(String string) async {
-      Navigator.of(context).pop();
-      removeKeybord();
-      if (string == userPosition?.city) {
-        CallPositionApi = userPosition;
+    try {
+      Sentry.captureMessage("Attempting to get user location...");
+      final loc = await LocationService().getCity();
+      if (loc != null) {
+        setState(() {
+          userPosition = loc;
+          CallPositionApi = loc;
+        });
+        Sentry.captureMessage(
+          "User location obtained: ${loc.city}, Latitude: ${loc.latitude}, Longitude: ${loc.longitude}",
+        );
         CallApi();
       } else {
-        CallPositionApi = await  LocationService().getCoordsFromCity(string);
-        CallApi();
+        Sentry.captureMessage("Failed to get user location: Location is null.");
       }
-
+    } catch (error, stackTrace) {
+      Sentry.captureException(error, stackTrace: stackTrace);
+      Sentry.captureMessage(
+        "Error occurred while getting user location: $error",
+      );
+    }
   }
 
-    removeKeybord() {
+  CallApi() async {
+    if (CallPositionApi == null) return;
+    apiResponse = await ApiService().CallApi(CallPositionApi!);
+    setState(() {});
+  }
+
+  //New city
+  onTap(String string) async {
+    Navigator.of(context).pop();
+    removeKeybord();
+    if (string == userPosition?.city) {
+      CallPositionApi = userPosition;
+      CallApi();
+    } else {
+      CallPositionApi = await LocationService().getCoordsFromCity(string);
+      CallApi();
+    }
+  }
+
+  removeKeybord() {
     FocusScope.of(context).requestFocus(FocusNode());
+  }
+
+  //Add city
+  onAddCity(String string) async {
+    final transaction = Sentry.startTransaction('Add City', 'app.action');
+
+    try {
+      final span = transaction.startChild('database.write');
+      span.setData('city', string);
+      DataService().addCity(string).then((onSuccess) => updateCities());
+      span.finish();
+
+      transaction.finish(status: const SpanStatus.ok());
+    } catch (error, stackTrace) {
+      transaction.finish(status: const SpanStatus.internalError());
+      Sentry.captureException(error, stackTrace: stackTrace);
+      Sentry.captureMessage("Error occurred while adding city: $error");
+    } finally {
+      Sentry.captureMessage("City added: $string");
+      removeKeybord();
     }
-
-    //Add city
-    onAddCity(String string) async {
-      final transaction = Sentry.startTransaction('Add City', 'app.action');
-
-      try {
-        final span = transaction.startChild('database.write');
-        span.setData('city', string);
-        DataService().addCity(string).then((onSuccess) => updateCities());
-        span.finish();
-
-        transaction.finish(status: const SpanStatus.ok());
-      } catch (error, stackTrace) {
-        transaction.finish(status: const SpanStatus.internalError());
-        Sentry.captureException(error, stackTrace: stackTrace);
-        Sentry.captureMessage("Error occurred while adding city: $error");
-      } finally {
-        Sentry.captureMessage("City added: $string");
-        removeKeybord();
-      }
-    }
+  }
 
   //remouve city
   remouveCity(String string) async {
@@ -254,5 +259,4 @@ class HomeState extends State<HomeView> {
     cities = await DataService().getCities();
     setState(() {});
   }
-
 }

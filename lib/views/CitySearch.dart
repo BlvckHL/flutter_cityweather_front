@@ -1,8 +1,8 @@
 
 
 import 'package:flutter/material.dart';
-import 'package:tp_flutter_cityweather/models/MyGeoposition.dart';
-import 'package:tp_flutter_cityweather/services/LocationService.dart';
+import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
+import 'package:flutter_cityweather_front/services/LocationService.dart';
 
 class CitySearchDialog extends StatefulWidget {
   final Function(GeoPosition) onCitySelected;
