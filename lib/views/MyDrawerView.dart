@@ -20,11 +20,21 @@ class MyDrawer extends StatelessWidget {
     final itemCount = (myPosition == null)
         ? cities.length + 1
         : cities.length + 2;
+    // Ajouter un item pour "aucune ville" si la liste est vide
+    final hasNoCities = cities.isEmpty && myPosition == null;
+    final finalItemCount = hasNoCities ? 2 : itemCount;
     return Drawer(
       child: ListView.separated(
         itemBuilder: ((context, index) {
           if (index == 0) {
             return header(context);
+          }
+          if (hasNoCities && index == 1) {
+            return const ListTile(
+              title: Text("Aucune ville ajoutée"),
+              subtitle: Text("Recherchez une ville pour l'ajouter à vos favoris"),
+              leading: Icon(Icons.info_outline),
+            );
           }
           if (index == 1 && myPosition != null) {
             return tappable(myPosition!.city, false);
@@ -35,21 +45,29 @@ class MyDrawer extends StatelessWidget {
           return tappable(cities[index - 2], true);
         }),
         separatorBuilder: ((context, index) => const Divider()),
-        itemCount: itemCount,
+        itemCount: finalItemCount,
       ),
     );
   }
 
   DrawerHeader header(BuildContext context) {
     return DrawerHeader(
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+      ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.location_on_outlined,
             size: 32,
             color: Theme.of(context).primaryColor,
           ),
-          const Text("Mes villes"),
+          const SizedBox(height: 8),
+          const Text(
+            "Mes villes",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
