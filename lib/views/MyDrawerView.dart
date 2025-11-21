@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_cityweather_front/models/AppUser.dart';
 import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
 
 class MyDrawer extends StatelessWidget {
@@ -6,6 +7,8 @@ class MyDrawer extends StatelessWidget {
   final List<String> cities;
   final Function(String) onTap;
   final Function(String) onDelete;
+  final AppUser? currentUser;
+  final VoidCallback? onLogout;
 
   const MyDrawer({
     super.key,
@@ -13,6 +16,8 @@ class MyDrawer extends StatelessWidget {
     required this.cities,
     required this.onTap,
     required this.onDelete,
+    this.currentUser,
+    this.onLogout,
   });
 
   @override
@@ -24,28 +29,46 @@ class MyDrawer extends StatelessWidget {
     final hasNoCities = cities.isEmpty && myPosition == null;
     final finalItemCount = hasNoCities ? 2 : itemCount;
     return Drawer(
-      child: ListView.separated(
-        itemBuilder: ((context, index) {
-          if (index == 0) {
-            return header(context);
-          }
-          if (hasNoCities && index == 1) {
-            return const ListTile(
-              title: Text("Aucune ville ajoutée"),
-              subtitle: Text("Recherchez une ville pour l'ajouter à vos favoris"),
-              leading: Icon(Icons.info_outline),
-            );
-          }
-          if (index == 1 && myPosition != null) {
-            return tappable(myPosition!.city, false);
-          }
-          if (myPosition == null) {
-            return tappable(cities[index - 1], true);
-          }
-          return tappable(cities[index - 2], true);
-        }),
-        separatorBuilder: ((context, index) => const Divider()),
-        itemCount: finalItemCount,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              itemBuilder: ((context, index) {
+                if (index == 0) {
+                  return header(context);
+                }
+                if (hasNoCities && index == 1) {
+                  return const ListTile(
+                    title: Text("Aucune ville ajoutée"),
+                    subtitle: Text(
+                      "Recherchez une ville pour l'ajouter à vos favoris",
+                    ),
+                    leading: Icon(Icons.info_outline),
+                  );
+                }
+                if (index == 1 && myPosition != null) {
+                  return tappable(myPosition!.city, false);
+                }
+                if (myPosition == null) {
+                  return tappable(cities[index - 1], true);
+                }
+                return tappable(cities[index - 2], true);
+              }),
+              separatorBuilder: ((context, index) => const Divider()),
+              itemCount: finalItemCount,
+            ),
+          ),
+          const Divider(height: 1),
+          if (onLogout != null)
+            SafeArea(
+              top: false,
+              child: ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Se déconnecter'),
+                onTap: onLogout,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -53,7 +76,7 @@ class MyDrawer extends StatelessWidget {
   DrawerHeader header(BuildContext context) {
     return DrawerHeader(
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -64,10 +87,13 @@ class MyDrawer extends StatelessWidget {
             color: Theme.of(context).primaryColor,
           ),
           const SizedBox(height: 8),
-          const Text(
-            "Mes villes",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            currentUser?.displayName ?? "Mes villes",
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
           ),
+          if (currentUser?.email != null)
+            Text(currentUser!.email, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );

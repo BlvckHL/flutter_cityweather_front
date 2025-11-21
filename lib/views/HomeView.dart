@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:flutter_cityweather_front/models/AppUser.dart';
 import 'package:flutter_cityweather_front/models/MyGeoposition.dart';
 import 'package:flutter_cityweather_front/services/ApiResponse.dart';
 import 'package:flutter_cityweather_front/services/ApiService.dart';
@@ -11,7 +12,10 @@ import 'package:flutter_cityweather_front/views/MyDrawerView.dart';
 import 'package:flutter_cityweather_front/views/WeatherForecastView.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  const HomeView({super.key, this.currentUser, this.onLogout});
+
+  final AppUser? currentUser;
+  final VoidCallback? onLogout;
   @override
   HomeState createState() => HomeState();
 }
@@ -83,6 +87,8 @@ class HomeState extends State<HomeView> {
         cities: savedCities,
         onTap: _onFavoriteSelected,
         onDelete: _removeCity,
+        currentUser: widget.currentUser,
+        onLogout: _handleLogout,
       ),
       body: Column(
         children: [
@@ -100,6 +106,11 @@ class HomeState extends State<HomeView> {
         child: const Icon(Icons.add_location_alt),
       ),
     );
+  }
+
+  void _handleLogout() {
+    Navigator.of(context).pop();
+    widget.onLogout?.call();
   }
 
   // Méthode pour afficher la recherche de ville

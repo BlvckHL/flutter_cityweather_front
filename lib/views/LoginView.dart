@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_cityweather_front/views/HomeView.dart';
+import 'package:flutter_cityweather_front/services/auth/AuthException.dart';
+import 'package:flutter_cityweather_front/services/auth/AuthRepository.dart';
+import 'package:flutter_cityweather_front/services/auth/AuthSession.dart';
 
 class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+  const LoginView({
+    super.key,
+    required this.authRepository,
+    required this.onLoginSuccess,
+    required this.onRegisterRequested,
+  });
+
+  final AuthRepository authRepository;
+  final ValueChanged<AuthSession> onLoginSuccess;
+  final VoidCallback onRegisterRequested;
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -29,19 +40,32 @@ class _LoginViewState extends State<LoginView> {
       _isLoading = true;
     });
 
-    // Simulation d'une connexion
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final session = await widget.authRepository.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+      if (!mounted) return;
+      widget.onLoginSuccess(session);
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      _showError(error.message);
+    } catch (_) {
+      if (!mounted) return;
+      _showError('Impossible de se connecter. Veuillez réessayer.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
-    if (!mounted) return;
-
-    // Redirection vers HomeView
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomeView()),
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -86,7 +110,9 @@ class _LoginViewState extends State<LoginView> {
                     if (value == null || value.isEmpty) {
                       return 'Veuillez saisir votre email';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
                       return 'Veuillez saisir un email valide';
                     }
                     return null;
@@ -102,8 +128,13 @@ class _LoginViewState extends State<LoginView> {
                     labelText: 'Mot de passe',
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: const OutlineInputBorder(),
                   ),
@@ -138,6 +169,17 @@ class _LoginViewState extends State<LoginView> {
                           'Se connecter',
                           style: TextStyle(fontSize: 16),
                         ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: _isLoading ? null : widget.onRegisterRequested,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Créer un compte'),
                 ),
               ],
             ),
