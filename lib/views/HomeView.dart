@@ -87,8 +87,6 @@ class HomeState extends State<HomeView> {
         cities: savedCities,
         onTap: _onFavoriteSelected,
         onDelete: _removeCity,
-        currentUser: widget.currentUser,
-        onLogout: _handleLogout,
       ),
       body: Column(
         children: [
@@ -96,6 +94,9 @@ class HomeState extends State<HomeView> {
             _LocationHeader(
               position: selectedPosition!,
               onOpenMap: _openInMaps,
+              onAddToFavorites:
+                  _canAddToFavorites() ? () => onAddCity(selectedPosition!.city) : null,
+              isInFavorites: _isInFavorites(),
             ),
           Expanded(child: _buildForecastBody()),
         ],
@@ -126,21 +127,26 @@ class HomeState extends State<HomeView> {
     );
   }
 
+  // Vérifier si la ville peut être ajoutée aux favoris
+  bool _canAddToFavorites() {
+    if (selectedPosition == null) return false;
+    if (selectedPosition == userPosition) return false; // Position GPS déjà affichée automatiquement
+    return !savedCities.contains(selectedPosition!.city);
+  }
+
+  // Vérifier si la ville est déjà dans les favoris
+  bool _isInFavorites() {
+    if (selectedPosition == null) return false;
+    return savedCities.contains(selectedPosition!.city);
+  }
+
   // Sélectionner une ville depuis la recherche
   void _selectCity(GeoPosition position) {
     setState(() {
       selectedPosition = position;
     });
     _loadForecast();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("${position.city} sélectionnée"),
-        action: SnackBarAction(
-          label: "Ajouter",
-          onPressed: () => onAddCity(position.city),
-        ),
-      ),
-    );
+    // Supprimer le SnackBar automatique ici puisqu'on a maintenant un bouton dédié
   }
 
   // Obtenir la position GPS actuelle
@@ -343,30 +349,69 @@ class _EmptyState extends StatelessWidget {
 class _LocationHeader extends StatelessWidget {
   final GeoPosition position;
   final VoidCallback onOpenMap;
+  final VoidCallback? onAddToFavorites;
+  final bool isInFavorites;
 
-  const _LocationHeader({required this.position, required this.onOpenMap});
+  const _LocationHeader({
+    required this.position,
+    required this.onOpenMap,
+    this.onAddToFavorites,
+    required this.isInFavorites,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-      child: Row(
+      child: Column(
         children: [
-          Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              "${position.city}\nLat: ${position.latitude.toStringAsFixed(4)}, "
-              "Lon: ${position.longitude.toStringAsFixed(4)}",
-              style: const TextStyle(fontSize: 12),
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      position.city,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "Lat: ${position.latitude.toStringAsFixed(4)}, "
+                      "Lon: ${position.longitude.toStringAsFixed(4)}",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.map_outlined),
+                onPressed: onOpenMap,
+                tooltip: "Ouvrir dans les cartes",
+              ),
+            ],
+          ),
+          if (onAddToFavorites != null || isInFavorites) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onAddToFavorites,
+                icon: Icon(isInFavorites ? Icons.favorite : Icons.favorite_border),
+                label: Text(isInFavorites ? "Déjà dans les favoris" : "Ajouter aux favoris"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isInFavorites 
+                      ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.3)
+                      : Theme.of(context).colorScheme.primary,
+                  foregroundColor: isInFavorites 
+                      ? Theme.of(context).colorScheme.onSecondary
+                      : Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.map_outlined),
-            onPressed: onOpenMap,
-            tooltip: "Ouvrir dans les cartes",
-          ),
+          ],
         ],
       ),
     );
